@@ -1,6 +1,5 @@
 import serial
 import sys
-import time
 
 file_contents = ""
 
