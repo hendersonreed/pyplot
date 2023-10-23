@@ -30,7 +30,7 @@ def chunk(file_contents):
     return chunks
 
 
-def wait_for_empty_byte(ser):
+def wait_for_end_of_OA(ser):
     curr = True
     while curr != b'\r':
         curr = ser.read()
@@ -60,7 +60,7 @@ try:
     # Perform any serial communication operations here
     for each in command_chunks:
         ser.write(str.encode(each))
-        wait_for_empty_byte(ser)
+        wait_for_end_of_OA(ser)
 
     # Close the serial port when done
     ser.close()
