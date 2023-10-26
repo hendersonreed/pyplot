@@ -1,18 +1,62 @@
 import serial
 import sys
+import re
+
+# config section
+
+PLOTTER_NAME = "/dev/ttyUSB0"
+PLOTTER_MAX_X = 10300
+PLOTTER_MAX_Y = 7650
+
+# end of config section
 
 file_contents = ""
 
 
-def chunk(file_contents):
+def scale_command(s, scale_ratio):
+    # Match the command part (letters) and the numeric part (digits and commas)
+    command_match = re.match(r'([A-Za-z]+)', s)
+    numeric_match = re.search(r'(\d+)?,(\d+)?', s)
+    x = 0
+    y = 0
+
+    if command_match:
+        command = command_match.group(1)
+        if numeric_match.group():
+            x = x * scale_ratio
+            y = y * scale_ratio
+            nums = f"{x},{y}"
+        else:
+            nums = ""
+    return f"{command}{nums}"
+
+
+def find_max_xy(commands):
+    coordinates = [re.search(r'(\d+)?,(\d+)?', command)
+                   for command in commands]
+    xmax = 0
+    ymax = 0
+    for each in coordinates:
+        if each:
+            xmax = max(xmax, int(each.group(1)))
+            ymax = max(ymax, int(each.group(2)))
+
+    return xmax, ymax
+
+
+def scale_to_plotter(file_contents):
+    commands = file_contents.split(';')
+    for each in commands:
+        each = scale_command(each)
+    return commands
+
+
+def chunk(commands):
     """
     Splits the file contents into at-most 60 byte chunks of valid commands separated by semicolons.
     """  # noqa
-    chunks = []
 
     current_chunk = ""
-    commands = file_contents.split(';')
-
     for command in commands:
         # Check if adding the next command and the
         # OA command exceeds the 60-byte limit
@@ -50,11 +94,12 @@ else:
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found")
 
-command_chunks = chunk(file_contents)
+scaled_commands = scale_to_plotter(file_contents)
+command_chunks = chunk(scaled_commands)
 
 try:
     # Define the serial port
-    ser = serial.Serial('/dev/ttyUSB0', timeout=1)
+    ser = serial.Serial(PLOTTER_NAME, timeout=1)
 
     # Perform any serial communication operations here
     for each in command_chunks:
